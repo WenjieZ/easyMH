@@ -77,6 +77,7 @@ def mh(x, proba, domain=None, N=500, B=200, move='n', ascdes=(Id, Id), seed=None
         domain = np.ones((d, 2))
         domain[:, 0] = -np.inf * domain[:, 0]
         domain[:, 1] = np.inf * domain[:, 1]
+    domain = np.array(domain)
     
     if not indomain(x, domain):
         raise Exception(MESSAGE)
