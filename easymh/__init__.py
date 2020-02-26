@@ -54,6 +54,10 @@ def move_cohert(x, domain=None, cov=1, seed=None, **kvargs):
             
     if np.isscalar(cov):
         cov = np.diag(cov*np.ones(d))
+    elif len(np.shape(cov)) == 1:
+        cov = np.diag(cov)
+    else:
+        cov = np.array(cov)
 
     if seed is not None:
         np.random.seed(seed)
