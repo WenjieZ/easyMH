@@ -1,115 +1,156 @@
+from collections import namedtuple
 import numpy as np
 
 
-__all__ = ["mh"]
+__all__ = ["extract_options", "make_cube", "inf_cube", "incube",
+           "uniform", "gaussian", 
+           "individual", "collective", "rotative", "mh"]
 
 
-Id = lambda x: x
+Id = lambda x, *vargs, **kvargs: x
 MESSAGE = "Starting point outside of the domain."
+Roaming = namedtuple('Roaming', 'x walker objective')
 
 
-def indomain(x, domain):
-    return np.alltrue(domain[:, 0] < x) and np.alltrue(x < domain[:, 1])
+def extract_options(options, prefix):
+    """extract_options(dict(law=0, law_a=1, law_b=2, foo=3, foo_c=4), 'law') == {'a': 1, 'b': 2}"""
+    return {k.replace(prefix+'_', ""):options[k] for k in options if k.find(prefix+'_')==0}
 
 
-def move_elementwise(x, law, domain=None, width=1, seed=None, **kvargs):
+def make_cube(d, start=-np.inf, stop=np.inf):
+    cube = np.zeros((d, 2))
+    cube[:, 0] = start
+    cube[:, 1] = stop
+    return cube
+
+
+def inf_cube(d):
+    return make_cube(d)
+
+
+def incube(x, cube):  # whether in the open cube
     x = np.array(x)
-    d = len(x)
-    
-    if domain is None:
-        domain = np.ones((d, 2))
-        domain[:, 0] = -np.inf * domain[:, 0]
-        domain[:, 1] = np.inf * domain[:, 1]
-    domain = np.array(domain)
-    
+    cube = np.array(cube)
+    return np.alltrue(cube[:, 0] < x) and np.alltrue(x < cube[:, 1])
+
+
+def uniform(x, width=1, *vargs, seed=None, **kvargs):
+    x = np.array(x)
+    d = x.size
     if np.isscalar(width):
         width = width * np.ones(d)
+    if seed is not None:
+        np.random.seed(seed)
         
+    return x + width * (np.random.rand(d) - 0.5)
+
+
+def gaussian(x, sigma=1, *vargs, seed=None, **kvargs):
+    x = np.array(x)
+    d = x.size
+    if np.isscalar(sigma):
+        sigma = sigma * np.ones(d)
     if seed is not None:
         np.random.seed(seed)
     
-    if not indomain(x, domain):
-        raise Exception(MESSAGE)
+    return x + sigma * (np.random.randn(d))
+
+
+def individual(x, cube=None, law=uniform, *vargs, **options):
+    x = np.array(x)
+    d = x.size
+
+    if cube is None:
+        cube = inf_cube(d)
+    cube = np.array(cube)
     
-    if law == 'u':
-        y = x + width * (np.random.rand(d) - 0.5)
-    elif law == 'n':
-        y = x + width * np.random.randn(d)
+    if not incube(x, cube):
+        raise Exception(MESSAGE)
         
-    index = (y < domain[:, 0]) | (y > domain[:, 1])
+    y = law(x, **extract_options(options, 'law'))
+    index = (y < cube[:, 0]) | (y > cube[:, 1])
     y[index] = x[index]
-    
-    return y
+    return y, None
 
 
-def move_cohert(x, domain=None, cov=1, seed=None, **kvargs):
+def collective(x, cube=None, cov=1, *vargs, seed=None, **kvargs):  # multivariate-normal distribution
     x = np.array(x)
-    d = len(x)
+    d = x.size
+
+    if cube is None:
+        cube = inf_cube(d)
+    cube = np.array(cube)
+    if not incube(x, cube):
+        raise Exception(MESSAGE)
     
-    if domain is None:
-        domain = np.ones((d, 2))
-        domain[:, 0] = -np.inf * domain[:, 0]
-        domain[:, 1] = np.inf * domain[:, 1]
-    domain = np.array(domain)
-            
     if np.isscalar(cov):
-        cov = np.diag(cov*np.ones(d))
-    elif len(np.shape(cov)) == 1:
+        cov = cov * np.ones(d)
+    cov = np.array(cov)
+    if cov.ndim == 1:
         cov = np.diag(cov)
-    else:
-        cov = np.array(cov)
 
     if seed is not None:
-        np.random.seed(seed)
-    
-    if not indomain(x, domain):
-        raise Exception(MESSAGE)
-        
+        np.random.seed(seed)    
+
     y = x + np.random.multivariate_normal(np.zeros(d), cov)
+    y = y if incube(y, cube) else x
+    return y, None
 
-    if not indomain(y, domain):
-        y = x
+
+def rotative(x, t=0, state=None, cube=None, law=uniform, *vargs, seed=None, **options):  
+    x = np.array(x, dtype='float64')   # caution: must specify the datatype, in-place opertion below
+    d = x.size
+        
+    if cube is None:
+        cube = inf_cube(d)
+    cube = np.array(cube)
     
-    return y
+    if not incube(x, cube):
+        raise Exception(MESSAGE)
+    
+    if seed is not None and t==0:
+        np.random.seed(seed)
+
+    r = t % d
+    y = law([x[r]], **extract_options(options, 'law'))
+    if cube[r, 0] < y < cube[r, 1]:
+        x[r] = y
+    return x, state
 
 
-def mh(x, proba, domain=None, N=500, B=200, move='n', ascdes=(Id, Id), seed=None, **kvargs):
+def mh(x, proba, cube=None, move=individual, ascdes=(Id, Id), picked=range(100, 1000, 1), seed=None, **options):
     x = np.array(x)
     d = len(x)
+        
+    if cube is None:
+        cube = inf_cube(d)
+    cube = np.array(cube)
     
-    if domain is None:
-        domain = np.ones((d, 2))
-        domain[:, 0] = -np.inf * domain[:, 0]
-        domain[:, 1] = np.inf * domain[:, 1]
-    domain = np.array(domain)
-    
-    if not indomain(x, domain):
+    if not incube(x, cube):
         raise Exception(MESSAGE)
-    
-    if seed is not None:
-        np.random.seed(seed)
         
+    rng = np.random.RandomState(seed)
+    
+    N = picked[-1]
     walker = np.zeros((N+1, d))
+    objective = np.zeros(N+1)
     walker[0, :] = x
+    objective[0] = proba(x)
     
-    px = proba(x)
-
     _x = ascdes[0](x)
-    _domain = ascdes[0](domain)
+    px = proba(x)
+    _cube = np.apply_along_axis(ascdes[0], 0, cube)
     
-    for i in range(N):
-        if move in ['u', 'n']:
-            _y = move_elementwise(_x, move, _domain, **kvargs)
-        elif move == 'c':
-            _y = move_cohert(_x, _domain, **kvargs)
-        else:
-            _y = move(_x, _domain, **kvargs)
-        
+    state = None
+    for t in range(N):
+        _y, state2 = move(_x, t=t, state=state, cube=cube, **extract_options(options, 'move'))
         y = ascdes[1](_y)
         py = proba(y)
-        if np.random.rand() < py / px:
+        if rng.rand() < py / px:
             _x, x, px = _y, y, py
+            state = state2
         
-        walker[i+1, :] = x
-        
-    return np.mean(walker[B:, :], axis=0), walker
+        walker[t+1, :] = x
+        objective[t+1] = px
+
+    return Roaming(np.mean(walker[picked, :], axis=0), walker, objective)
