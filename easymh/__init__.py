@@ -130,7 +130,7 @@ def mh(x, proba, cube=None, move='individual', ascdes=(Id, Id), picked=range(100
         raise Exception(MESSAGE)
 
     dispatcher = dict(individual=individual, collective=collective, rotative=rotative)
-    move = dispatcher[move]
+    move = dispatcher.get(move, move)
         
     rng = np.random.RandomState(seed)
     
