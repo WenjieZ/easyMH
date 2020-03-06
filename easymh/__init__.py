@@ -98,7 +98,7 @@ def collective(x, cube=None, cov=1, *vargs, seed=None, **kvargs):  # multivariat
 
 
 def rotative(x, t=0, state=None, cube=None, law=uniform, *vargs, seed=None, **options):  
-    x = np.array(x, dtype='float64')   # caution: must specify the datatype, in-place opertion below
+    x = np.array(x, dtype='float64')   # caution: must specify the datatype, in-place operation below
     d = x.size
         
     if cube is None:
