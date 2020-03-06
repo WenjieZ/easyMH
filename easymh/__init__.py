@@ -118,7 +118,7 @@ def rotative(x, t=0, state=None, cube=None, law=uniform, *vargs, seed=None, **op
     return x, state
 
 
-def mh(x, proba, cube=None, move=individual, ascdes=(Id, Id), picked=range(100, 1000, 1), seed=None, **options):
+def mh(x, proba, cube=None, move='individual', ascdes=(Id, Id), picked=range(100, 1000, 1), seed=None, **options):
     x = np.array(x)
     d = len(x)
         
@@ -128,6 +128,9 @@ def mh(x, proba, cube=None, move=individual, ascdes=(Id, Id), picked=range(100, 
     
     if not incube(x, cube):
         raise Exception(MESSAGE)
+
+    dispatcher = dict(individual=individual, collective=collective, rotative=rotative)
+    move = dispatcher[move]
         
     rng = np.random.RandomState(seed)
     
@@ -143,7 +146,7 @@ def mh(x, proba, cube=None, move=individual, ascdes=(Id, Id), picked=range(100, 
     
     state = None
     for t in range(N):
-        _y, state2 = move(_x, t=t, state=state, cube=cube, **extract_options(options, 'move'))
+        _y, state2 = move(_x, t=t, state=state, cube=_cube, **extract_options(options, 'move'))
         y = ascdes[1](_y)
         py = proba(y)
         if rng.rand() < py / px:
