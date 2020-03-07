@@ -118,7 +118,7 @@ def rotative(x, t=0, state=None, cube=None, law=uniform, *vargs, seed=None, **op
     return x, state
 
 
-def mh(x, proba, cube=None, move='individual', ascdes=(Id, Id), picked=range(100, 1000, 1), seed=None, **options):
+def mh(x, proba, cube=None, move='individual', ascdes=(Id, Id), picked=range(100, 1000, 1), redu=np.mean, seed=None, **options):
     x = np.array(x)
     d = len(x)
         
@@ -156,4 +156,4 @@ def mh(x, proba, cube=None, move='individual', ascdes=(Id, Id), picked=range(100
         walker[t+1, :] = x
         objective[t+1] = px
 
-    return Roaming(np.mean(walker[picked, :], axis=0), walker, objective)
+    return Roaming(redu(walker[picked, :], axis=0), walker, objective)
