@@ -1,4 +1,6 @@
 # EasyMH: Easy Metropolis-Hastings (algorithm)
+![](https://github.com/WenjieZ/easyMH/workflows/.github/workflows/python-package.yml/badge.svg)
+
 Metropolis-Hastings is one of the two well-known sampling algorithms (with the other one being Gibbs) for Markov Chain Monte-Carlo (MCMC) estimation methods, which are frequently used in Bayesian statistics, Graphical models, etc..
 This lightweight Python package helps you use MCMC based on Metropolis-Hastings sampling to solve your own problems in research or engineering.
 
