@@ -1,5 +1,5 @@
 import numpy as np
-from easymh import *
+from ..easymh import *
 
 
 def test_extract_options():
